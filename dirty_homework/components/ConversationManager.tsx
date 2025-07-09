@@ -1,5 +1,5 @@
 'use client'
-
+import { env } from 'process'
 import React, { useState, useEffect, useRef } from 'react'
 import { 
   Card, 
@@ -18,26 +18,24 @@ import {
   UserOutlined,
   RobotOutlined
 } from '@ant-design/icons'
-import { Conversation, Message } from '../types'
 import { conversationApi } from '../services/api'
 import { useScriptStore, Role, Script } from '../lib/store'
+import { useSSE } from '../lib/useSSE'
 import ScriptSlider from './ScriptSlider'
 import RoleSlider from './RoleSlider'
+import { historyItem } from '../services/types'
 
 const { TextArea } = Input
 const { Text } = Typography
 
 const ConversationManager: React.FC = () => {
-  // 状态管理
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<historyItem[]>([])
   const [inputValue, setInputValue] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [sending, setSending] = useState(false)
+  const [isReceiving, setIsReceiving] = useState(false)
   const [selectedRole, setSelectedRole] = useState<Role | null>(null)
   
   const { scripts, selectedScript, selectScript } = useScriptStore()
+  const { startSSEConnection, closeConnection, isConnected } = useSSE()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // 自动滚动到底部
@@ -49,104 +47,73 @@ const ConversationManager: React.FC = () => {
     scrollToBottom()
   }, [messages])
 
-  // 获取对话列表
-  const fetchConversations = async () => {
-    if (!selectedScript) return
+  // 获取历史对话
+  const fetchHistory = async () => {
+    if (!selectedRole) return
     
-    setLoading(true)
     try {
-      const response = await conversationApi.getAll()
-      if (response.success && response.data) {
-        const filteredConversations = response.data.filter(
-          conv => conv.scriptId === selectedScript.id
-        )
-        setConversations(filteredConversations)
+      const response = await conversationApi.getHistory({
+        role_id_user: 'user',
+        role_id_assistant: selectedRole.id
+      })
+      
+      if (response.code === 0 && response.data) {
+        setMessages(response.data.history || [])
+      } else {
+        message.error(response.message || '获取历史对话失败')
       }
     } catch (error) {
-      message.error('获取对话列表失败')
-    } finally {
-      setLoading(false)
+      message.error('获取历史对话失败')
     }
   }
 
-  useEffect(() => {
-    if (selectedScript) {
-      fetchConversations()
-      setSelectedRole(null) // 重置选中的角色
+  // 发送消息并处理 SSE 响应
+  const sendMessage = async () => {
+    if (!inputValue.trim() || !selectedRole) return
+    
+    // 添加用户消息到列表
+    const userMessage: historyItem = {
+      role: 'user',
+      content: inputValue.trim()
     }
-  }, [selectedScript])
-
-  // 创建新对话
-  const createNewConversation = async () => {
-    if (!selectedScript || !selectedRole) {
-      message.warning('请选择剧本和角色')
-      return
-    }
+    
+    setMessages(prev => [...prev, userMessage])
+    setInputValue('')
+    setIsReceiving(true)
 
     try {
-      const response = await conversationApi.create({
-        title: `与${selectedRole.name}的对话`,
-        scriptId: selectedScript.id,
-        currentCharacter: {
-          id: selectedRole.id,
-          name: selectedRole.name,
-          description: selectedRole.language_habit,
-          personality: selectedRole.character,
-          scriptId: selectedScript.id
+      // 开始 SSE 连接
+      const sseUrl = `${env.requestAPI}/chat`
+      
+      startSSEConnection(sseUrl, {
+        onMessage: (data) => {
+          if (data.content) {
+            setMessages(prev => [...prev, {
+              role: 'assistant',
+              content: data.content
+            }])
+          }
         },
-        messages: []
+        onError: (error) => {
+          message.error('接收消息失败')
+          console.log(error);
+          setIsReceiving(false)
+          closeConnection()
+        }
       })
 
-      if (response.success && response.data) {
-        setCurrentConversation(response.data)
-        setMessages([])
-        fetchConversations()
-        message.success('对话创建成功')
-      }
-    } catch (error) {
-      message.error('创建对话失败')
-    }
-  }
-
-  // 发送消息
-  const sendMessage = async () => {
-    if (!inputValue.trim() || !currentConversation) return
-    
-    const newMessage: Partial<Message> = {
-      content: inputValue.trim(),
-      sender: 'user',
-      type: 'user',
-      timestamp: new Date().toISOString()
-    }
-
-    setSending(true)
-    try {
-      const response = await conversationApi.sendMessage(currentConversation.id, newMessage)
-      if (response.success && response.data) {
-        setMessages(prev => [...prev, response.data!])
-        setInputValue('')
-        
-        // 等待AI回复
-        setTimeout(async () => {
-          try {
-            const aiResponse = await conversationApi.sendMessage(currentConversation.id, {
-              content: '', // 空内容表示请求AI回复
-              sender: currentConversation.currentCharacter?.name || 'AI',
-              type: 'character',
-              timestamp: new Date().toISOString()
-            })
-            if (aiResponse.success && aiResponse.data) {
-              setMessages(prev => [...prev, aiResponse.data!])
-            }
-          } catch (error) {
-            message.error('AI回复失败')
-          }
-        }, 1000)
-      }
+      // 发送用户消息
+      await conversationApi.startSSE({
+        role_id_user: 'user',
+        role_id_assistant: selectedRole.id,
+        content: inputValue.trim()
+      })
+      
+      // 由于 startSSERsp 是空的，我们不需要处理响应
     } catch (error) {
       message.error('发送消息失败')
-    } finally {
-      setSending(false)
+      setIsReceiving(false)
+      closeConnection()
     }
   }
 
@@ -157,31 +124,51 @@ const ConversationManager: React.FC = () => {
     }
   }
 
+  // 处理角色选择
+  const handleRoleSelect = (role: Role) => {
+    setSelectedRole(role)
+    closeConnection() // 切换角色时关闭现有连接
+    setMessages([])
+    // 获取与新角色的历史对话
+    fetchHistory()
+  }
+
+  // 处理剧本选择
+  const handleScriptSelect = (script: Script) => {
+    selectScript(script)
+    closeConnection() // 切换剧本时关闭现有连接
+    setSelectedRole(null)
+    setMessages([])
+  }
+
+  // 组件卸载时清理
+  useEffect(() => {
+    return () => {
+      closeConnection()
+    }
+  }, [])
+
   return (
     <div className="conversation-manager" style={{ padding: '20px 0' }}>
-      {/* 剧本选择器 */}
       <ScriptSlider
         scripts={scripts}
         currentScript={selectedScript}
-        onScriptSelect={selectScript}
+        onScriptSelect={handleScriptSelect}
         cardHeight={120}
       />
 
-      {/* 角色选择器 */}
       {selectedScript && (
         <RoleSlider
           roles={selectedScript.roles}
           selectedRole={selectedRole}
-          onRoleSelect={setSelectedRole}
+          onRoleSelect={handleRoleSelect}
           cardHeight={80}
         />
       )}
 
-      {/* 对话区域 */}
       <div style={{ marginTop: 20 }}>
         {selectedScript && selectedRole ? (
           <Card style={{ height: 'calc(100vh - 400px)' }}>
-            {/* 消息列表 */}
             <div style={{ 
               height: 'calc(100% - 100px)', 
               overflowY: 'auto',
@@ -194,37 +181,32 @@ const ConversationManager: React.FC = () => {
                     border: 'none', 
                     padding: '8px 16px',
                     display: 'flex',
-                    justifyContent: message.type === 'user' ? 'flex-end' : 'flex-start'
+                    justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start'
                   }}>
                     <div style={{ 
                       maxWidth: '70%',
                       display: 'flex',
-                      flexDirection: message.type === 'user' ? 'row-reverse' : 'row',
+                      flexDirection: message.role === 'user' ? 'row-reverse' : 'row',
                       alignItems: 'flex-start',
                       gap: 8
                     }}>
                       <Avatar 
-                        icon={message.type === 'user' ? <UserOutlined /> : <RobotOutlined />}
+                        icon={message.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
                         style={{ 
-                          backgroundColor: message.type === 'user' ? '#1890ff' : '#52c41a'
+                          backgroundColor: message.role === 'user' ? '#1890ff' : '#52c41a'
                         }}
                       />
                       <div>
                         <div style={{ 
-                          backgroundColor: message.type === 'user' ? '#e6f7ff' : '#f6ffed',
+                          backgroundColor: message.role === 'user' ? '#e6f7ff' : '#f6ffed',
                           padding: '8px 12px',
                           borderRadius: 8,
                           position: 'relative'
                         }}>
                           <Text>{message.content}</Text>
-                        </div>
-                        <div style={{ 
-                          textAlign: message.type === 'user' ? 'right' : 'left',
-                          marginTop: 4
-                        }}>
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            {new Date(message.timestamp).toLocaleTimeString()}
-                          </Text>
+                          {isReceiving && message.role === 'assistant' && (
+                            <Spin size="small" style={{ marginLeft: 8 }} />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -234,11 +216,7 @@ const ConversationManager: React.FC = () => {
                   emptyText: (
                     <Empty 
                       image={Empty.PRESENTED_IMAGE_SIMPLE} 
-                      description={
-                        currentConversation 
-                          ? "开始对话吧" 
-                          : <Button type="primary" onClick={createNewConversation}>开始新对话</Button>
-                      }
+                      description="开始对话吧"
                     />
                   )
                 }}
@@ -246,7 +224,6 @@ const ConversationManager: React.FC = () => {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* 输入区域 */}
             <div style={{ 
               borderTop: '1px solid #f0f0f0', 
               padding: '16px 0',
@@ -263,15 +240,15 @@ const ConversationManager: React.FC = () => {
                   onKeyPress={handleKeyPress}
                   placeholder="输入消息..."
                   autoSize={{ minRows: 1, maxRows: 4 }}
-                  disabled={sending}
+                  disabled={isReceiving}
                   style={{ borderRadius: '4px 0 0 4px' }}
                 />
                 <Button 
                   type="primary" 
                   icon={<SendOutlined />}
                   onClick={sendMessage}
-                  loading={sending}
-                  disabled={!inputValue.trim() || !currentConversation}
+                  loading={isReceiving}
+                  disabled={!inputValue.trim() || isReceiving}
                   style={{ borderRadius: '0 4px 4px 0' }}
                 >
                   发送

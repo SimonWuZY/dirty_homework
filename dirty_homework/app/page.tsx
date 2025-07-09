@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import { Layout, Menu, theme, Tabs, message } from 'antd'
-import { 
-  BookOutlined, 
+import {
+  BookOutlined,
   MessageOutlined
 } from '@ant-design/icons'
 import ScriptManager from '../components/ScriptManager'
@@ -15,7 +15,7 @@ export default function HomePage() {
   const [selectedKey, setSelectedKey] = useState('scripts')
   const [selectedScript, setSelectedScript] = useState<string | null>(null)
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null)
-  
+
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken()
@@ -41,16 +41,14 @@ export default function HomePage() {
     switch (selectedKey) {
       case 'scripts':
         return (
-          <ScriptManager 
+          <ScriptManager
             onScriptSelect={setSelectedScript}
             selectedScript={selectedScript}
           />
         )
       case 'conversations':
         return (
-          <ConversationManager 
-            scriptId={selectedScript}
-            characterId={selectedCharacter}
+          <ConversationManager
           />
         )
       default:
@@ -60,25 +58,25 @@ export default function HomePage() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ 
-        display: 'flex', 
+      <Header style={{
+        display: 'flex',
         alignItems: 'center',
         background: colorBgContainer,
         borderBottom: '1px solid #f0f0f0'
       }}>
-        <div style={{ 
-          fontSize: '20px', 
+        <div style={{
+          fontSize: '20px',
           fontWeight: 'bold',
           color: '#1890ff'
         }}>
           剧本角色对话系统
         </div>
       </Header>
-      
+
       <Layout>
-        <Sider 
-          width={200} 
-          style={{ 
+        <Sider
+          width={200}
+          style={{
             background: colorBgContainer,
             borderRight: '1px solid #f0f0f0'
           }}
@@ -91,7 +89,7 @@ export default function HomePage() {
             onClick={handleMenuClick}
           />
         </Sider>
-        
+
         <Layout style={{ padding: '24px' }}>
           <Content
             style={{

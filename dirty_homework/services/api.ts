@@ -1,16 +1,16 @@
-import { Script, Character, Conversation, Message, ApiResponse, BackendApiResponse, ScriptResponseData } from '../types'
+import { env } from 'process'
 import { 
-  requestAPI, 
-  uploadScriptReq, 
   uploadScriptRsp, 
   analyzeScriptReq, 
   analyzeScriptRsp, 
-  queryRolesReq, 
-  queryRolesRsp,
   modifyRoleReq,
-  modifyRoleRsp 
+  modifyRoleRsp, 
+  getHistoryReq,
+  getHistoryRsp,
+  ApiResponse,
+  startSSEReq,
+  startSSERsp
 } from './types'
-import { Script as StoreScript, Role } from '../lib/store';
 
 // 通用API请求函数
 async function apiRequest<T>(
@@ -18,7 +18,7 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   try {
-    const response = await fetch(`${requestAPI}${endpoint}`, {
+    const response = await fetch(`${env.requestAPI}${endpoint}`, {
       ...options,
     });
 
@@ -42,7 +42,7 @@ export const scriptApi = {
       formData.append('title', title);
       formData.append('file', file);
       
-      const response = await fetch(`${requestAPI}/scripts`, {
+      const response = await fetch(`${env.requestAPI}/scripts`, {
         method: 'POST',
         body: formData,
       });
@@ -70,7 +70,7 @@ export const scriptApi = {
         script_id: scriptId
       };
       
-      const response = await fetch(`${requestAPI}/roles`, {
+      const response = await fetch(`${env.requestAPI}/roles`, {
         method: 'POST',
         body: JSON.stringify(requestBody)
       });
@@ -92,7 +92,7 @@ export const scriptApi = {
   // 修改角色
   modifyRole: async (params: modifyRoleReq): Promise<modifyRoleRsp> => {
     try {
-      const response = await fetch(`${requestAPI}/roles`, {
+      const response = await fetch(`${env.requestAPI}/roles`, {
         method: 'PUT',
         body: JSON.stringify(params),
       });
@@ -114,27 +114,33 @@ export const scriptApi = {
 
 // 对话相关API
 export const conversationApi = {
-  // 获取所有对话
-  getAll: () => apiRequest<Conversation[]>('/conversations'),
-  
-  // 获取单个对话
-  getById: (id: string) => apiRequest<Conversation>(`/conversations/${id}`),
-  
-  // 创建新对话
-  create: (conversation: Partial<Conversation>) =>
-    apiRequest<Conversation>('/conversations', {
-      method: 'POST',
-      body: JSON.stringify(conversation),
-    }),
-  
-  // 发送消息
-  sendMessage: (conversationId: string, message: Partial<Message>) =>
-    apiRequest<Message>(`/conversations/${conversationId}/messages`, {
-      method: 'POST',
-      body: JSON.stringify(message),
-    }),
-  
-  // 获取对话消息
-  getMessages: (conversationId: string) =>
-    apiRequest<Message[]>(`/conversations/${conversationId}/messages`),
+  // 获取历史对话
+  getHistory: async (params: getHistoryReq): Promise<getHistoryRsp> => {
+    try {
+      const response = await fetch(`${env.requestAPI}/chat`, {
+        method: 'GET',
+        body: JSON.stringify(params),
+      });
+      const result: getHistoryRsp = await response.json();
+      return result;
+    } catch (error) {
+      console.error('获取历史对话失败:', error);
+      throw error;
+    }
+  },
+
+  // 开始 sse 对话
+  startSSE: async (params: startSSEReq): Promise<startSSERsp> => {
+    try {
+      const response = await fetch(`${env.requestAPI}/chat`, {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      const result: startSSERsp = await response.json();
+      return result;
+    } catch (error) {
+      console.error('开始 sse 对话失败:', error);
+      throw error;
+    }
+  }
 }; 

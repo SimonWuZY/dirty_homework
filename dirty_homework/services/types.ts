@@ -1,5 +1,11 @@
-export const requestAPI = 'http://47.120.11.159:31721/api/v1';
 
+// API响应类型
+export interface ApiResponse<T> {
+    success: boolean;
+    data?: T;
+    message?: string;
+  }
+  
 // 剧本角色
 interface roles {
     id: string;
@@ -78,7 +84,7 @@ export interface getHistoryReq {
     role_id_assistant: string;
 }
 
-interface historyItem {
+export interface historyItem {
     role: string;
     content: string;
 }
@@ -96,4 +102,13 @@ export interface getHistoryRsp {
 }
 
 
-// 对话接口
+// SSE 流式对话接口
+export interface startSSEReq {
+    role_id_user: string;
+    role_id_assistant: string;
+    content: string;
+}
+
+export interface startSSERsp {
+
+}
