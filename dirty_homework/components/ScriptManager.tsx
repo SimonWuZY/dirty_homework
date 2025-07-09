@@ -63,7 +63,7 @@ const ScriptManager: React.FC<ScriptManagerProps> = ({
 
     setLoading(true)
     try {
-      const response = await scriptApi.upload(file)
+      const response = await scriptApi.upload({title, file})
       if (response.code === 0) {
         const newScript: Script = {
           id: response.data.script_id,

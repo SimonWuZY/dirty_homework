@@ -8,16 +8,16 @@ import {
   getHistoryRsp,
   ApiResponse,
   startSSEReq,
-  startSSERsp
+  startSSERsp,
+  uploadScriptReq
 } from './types'
 
 // 剧本相关API
 export const scriptApi = {
   // 上传剧本文件 
-  upload: async (file: File): Promise<uploadScriptRsp> => {
+  upload: async ({title, file} : uploadScriptReq): Promise<uploadScriptRsp> => {
     try {
       const formData = new FormData();
-      const title = file.name.split('.')[0];
       formData.append('title', title);
       formData.append('file', file);
 
