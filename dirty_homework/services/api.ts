@@ -11,26 +11,6 @@ import {
   startSSERsp
 } from './types'
 
-// 通用API请求函数
-async function apiRequest<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<ApiResponse<T>> {
-  try {
-    const response = await fetch(`${process.env.REQUESTAPI}${endpoint}`, {
-      ...options,
-    });
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : '网络错误',
-    };
-  }
-}
-
 // 剧本相关API
 export const scriptApi = {
   // 上传剧本文件 
@@ -40,7 +20,7 @@ export const scriptApi = {
       const title = file.name.split('.')[0];
       formData.append('title', title);
       formData.append('file', file);
-      
+
       const response = await fetch(`${process.env.REQUESTAPI}/scripts`, {
         method: 'POST',
         body: formData,
