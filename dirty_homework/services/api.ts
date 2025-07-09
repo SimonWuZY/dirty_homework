@@ -1,6 +1,16 @@
-import { Script, Character, Conversation, Message, ApiResponse } from '../types';
-
-const API_BASE_URL = '/api';
+import { Script, Character, Conversation, Message, ApiResponse, BackendApiResponse, ScriptResponseData } from '../types'
+import { 
+  requestAPI, 
+  uploadScriptReq, 
+  uploadScriptRsp, 
+  analyzeScriptReq, 
+  analyzeScriptRsp, 
+  queryRolesReq, 
+  queryRolesRsp,
+  modifyRoleReq,
+  modifyRoleRsp 
+} from './types'
+import { Script as StoreScript, Role } from '../lib/store';
 
 // 通用API请求函数
 async function apiRequest<T>(
@@ -8,11 +18,7 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+    const response = await fetch(`${requestAPI}${endpoint}`, {
       ...options,
     });
 
@@ -28,63 +34,83 @@ async function apiRequest<T>(
 
 // 剧本相关API
 export const scriptApi = {
-  // 获取所有剧本
-  getAll: () => apiRequest<Script[]>('/scripts'),
-  
-  // 获取单个剧本
-  getById: (id: string) => apiRequest<Script>(`/scripts/${id}`),
-  
-  // 创建剧本
-  create: (script: Partial<Script>) => 
-    apiRequest<Script>('/scripts', {
-      method: 'POST',
-      body: JSON.stringify(script),
-    }),
-  
-  // 更新剧本
-  update: (id: string, script: Partial<Script>) =>
-    apiRequest<Script>(`/scripts/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(script),
-    }),
-  
-  // 删除剧本
-  delete: (id: string) =>
-    apiRequest<void>(`/scripts/${id}`, {
-      method: 'DELETE',
-    }),
-  
-  // 上传剧本文件
-  upload: (file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    return fetch(`${API_BASE_URL}/scripts/upload`, {
-      method: 'POST',
-      body: formData,
-    }).then(res => res.json());
+  // 上传剧本文件 
+  upload: async (file: File): Promise<uploadScriptRsp> => {
+    try {
+      const formData = new FormData();
+      const title = file.name.split('.')[0];
+      formData.append('title', title);
+      formData.append('file', file);
+      
+      const response = await fetch(`${requestAPI}/scripts`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const result: uploadScriptRsp = await response.json();
+      return result;
+    } catch (error) {
+      return {
+        code: -1,
+        status: 'error',
+        message: error instanceof Error ? error.message : '网络错误',
+        data: {
+          script_id: '',
+          script_title: '',
+          script_content: ''
+        }
+      };
+    }
   },
-  
-  // 解析剧本生成角色
-  parse: (id: string) =>
-    apiRequest<Character[]>(`/scripts/${id}/parse`, {
-      method: 'POST',
-    }),
+
+  // 分析剧本生成角色
+  analyze: async (scriptId: string): Promise<analyzeScriptRsp> => {
+    try {
+      const requestBody: analyzeScriptReq = {
+        script_id: scriptId
+      };
+      
+      const response = await fetch(`${requestAPI}/roles`, {
+        method: 'POST',
+        body: JSON.stringify(requestBody)
+      });
+      
+      const result: analyzeScriptRsp = await response.json();
+      return result;
+    } catch (error) {
+      return {
+        code: -1,
+        status: 'error',
+        message: error instanceof Error ? error.message : '网络错误',
+        data: {
+          roles: []
+        }
+      };
+    }
+  },
+
+  // 修改角色
+  modifyRole: async (params: modifyRoleReq): Promise<modifyRoleRsp> => {
+    try {
+      const response = await fetch(`${requestAPI}/roles`, {
+        method: 'PUT',
+        body: JSON.stringify(params),
+      });
+      
+      const result: modifyRoleRsp = await response.json();
+      return result;
+    } catch (error) {
+      console.error('修改角色失败:', error);
+      return {
+        code: -1,
+        status: 'error',
+        message: '修改角色失败'
+      };
+    }
+  },
 };
 
-// 角色相关API
-export const characterApi = {
-  // 获取剧本的所有角色
-  getByScriptId: (scriptId: string) =>
-    apiRequest<Character[]>(`/characters?scriptId=${scriptId}`),
-  
-  // 更新角色信息
-  update: (id: string, character: Partial<Character>) =>
-    apiRequest<Character>(`/characters/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(character),
-    }),
-};
+// 角色相关API - 已移除，现在使用 store 中的角色信息
 
 // 对话相关API
 export const conversationApi = {

@@ -9,8 +9,6 @@ import {
   Avatar, 
   Typography, 
   Space, 
-  Select, 
-  Divider,
   Empty,
   message,
   Spin
@@ -18,37 +16,31 @@ import {
 import { 
   SendOutlined, 
   UserOutlined,
-  RobotOutlined,
-  MessageOutlined
+  RobotOutlined
 } from '@ant-design/icons'
-import { Conversation, Message, Character } from '../types'
-import { conversationApi, characterApi } from '../services/api'
+import { Conversation, Message } from '../types'
+import { conversationApi } from '../services/api'
+import { useScriptStore, Role, Script } from '../lib/store'
+import ScriptSlider from './ScriptSlider'
+import RoleSlider from './RoleSlider'
 
 const { TextArea } = Input
-const { Title, Text } = Typography
-const { Option } = Select
+const { Text } = Typography
 
-interface ConversationManagerProps {
-  scriptId: string | null
-  characterId: string | null
-}
-
-const ConversationManager: React.FC<ConversationManagerProps> = ({ 
-  scriptId, 
-  characterId 
-}) => {
+const ConversationManager: React.FC = () => {
+  // 状态管理
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
-  const [characters, setCharacters] = useState<Character[]>([])
-  const [selectedCharacter, setSelectedCharacter] = useState<string | null>(characterId)
-  const [userCharacter, setUserCharacter] = useState<string | null>(null)
+  const [selectedRole, setSelectedRole] = useState<Role | null>(null)
   
+  const { scripts, selectedScript, selectScript } = useScriptStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  // 自动滚动到底部
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -59,14 +51,14 @@ const ConversationManager: React.FC<ConversationManagerProps> = ({
 
   // 获取对话列表
   const fetchConversations = async () => {
-    if (!scriptId) return
+    if (!selectedScript) return
     
     setLoading(true)
     try {
       const response = await conversationApi.getAll()
       if (response.success && response.data) {
         const filteredConversations = response.data.filter(
-          conv => conv.scriptId === scriptId
+          conv => conv.scriptId === selectedScript.id
         )
         setConversations(filteredConversations)
       }
@@ -77,43 +69,31 @@ const ConversationManager: React.FC<ConversationManagerProps> = ({
     }
   }
 
-  // 获取角色列表
-  const fetchCharacters = async () => {
-    if (!scriptId) return
-    
-    try {
-      const response = await characterApi.getByScriptId(scriptId)
-      if (response.success && response.data) {
-        setCharacters(response.data)
-      }
-    } catch (error) {
-      message.error('获取角色列表失败')
+  useEffect(() => {
+    if (selectedScript) {
+      fetchConversations()
+      setSelectedRole(null) // 重置选中的角色
     }
-  }
-
-  useEffect(() => {
-    fetchConversations()
-    fetchCharacters()
-  }, [scriptId])
-
-  useEffect(() => {
-    setSelectedCharacter(characterId)
-  }, [characterId])
+  }, [selectedScript])
 
   // 创建新对话
   const createNewConversation = async () => {
-    if (!scriptId || !selectedCharacter) {
+    if (!selectedScript || !selectedRole) {
       message.warning('请选择剧本和角色')
       return
     }
 
     try {
-      const character = characters.find(c => c.id === selectedCharacter)
       const response = await conversationApi.create({
-        title: `与${character?.name}的对话`,
-        scriptId,
-        currentCharacter: character,
-        userCharacter: userCharacter ? characters.find(c => c.id === userCharacter) : undefined,
+        title: `与${selectedRole.name}的对话`,
+        scriptId: selectedScript.id,
+        currentCharacter: {
+          id: selectedRole.id,
+          name: selectedRole.name,
+          description: selectedRole.language_habit,
+          personality: selectedRole.character,
+          scriptId: selectedScript.id
+        },
         messages: []
       })
 
@@ -125,22 +105,6 @@ const ConversationManager: React.FC<ConversationManagerProps> = ({
       }
     } catch (error) {
       message.error('创建对话失败')
-    }
-  }
-
-  // 加载对话
-  const loadConversation = async (conversation: Conversation) => {
-    setCurrentConversation(conversation)
-    setSelectedCharacter(conversation.currentCharacter?.id || null)
-    setUserCharacter(conversation.userCharacter?.id || null)
-    
-    try {
-      const response = await conversationApi.getMessages(conversation.id)
-      if (response.success && response.data) {
-        setMessages(response.data)
-      }
-    } catch (error) {
-      message.error('加载对话消息失败')
     }
   }
 
@@ -193,182 +157,134 @@ const ConversationManager: React.FC<ConversationManagerProps> = ({
     }
   }
 
-  if (!scriptId) {
-    return (
-      <Empty
-        image={Empty.PRESENTED_IMAGE_SIMPLE}
-        description="请先选择一个剧本来开始对话"
-      />
-    )
-  }
-
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 200px)', gap: 16 }}>
-      {/* 左侧对话列表 */}
-      <div style={{ width: 300, display: 'flex', flexDirection: 'column' }}>
-        <Card title="对话列表" size="small">
-          <div style={{ marginBottom: 16 }}>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <div>
-                <Text strong>选择对话角色：</Text>
-                <Select
-                  style={{ width: '100%', marginTop: 8 }}
-                  placeholder="选择要对话的角色"
-                  value={selectedCharacter}
-                  onChange={setSelectedCharacter}
-                >
-                  {characters.map(character => (
-                    <Option key={character.id} value={character.id}>
-                      {character.name}
-                    </Option>
-                  ))}
-                </Select>
-              </div>
-              
-              <div>
-                <Text strong>扮演角色（可选）：</Text>
-                <Select
-                  style={{ width: '100%', marginTop: 8 }}
-                  placeholder="选择要扮演的角色"
-                  value={userCharacter}
-                  onChange={setUserCharacter}
-                  allowClear
-                >
-                  {characters.map(character => (
-                    <Option key={character.id} value={character.id}>
-                      {character.name}
-                    </Option>
-                  ))}
-                </Select>
-              </div>
-              
-              <Button 
-                type="primary" 
-                icon={<MessageOutlined />}
-                onClick={createNewConversation}
-                disabled={!selectedCharacter}
-                style={{ width: '100%' }}
-              >
-                开始新对话
-              </Button>
-            </Space>
-          </div>
-          
-          <Divider />
-          
-          <List
-            size="small"
-            dataSource={conversations}
-            renderItem={(conversation) => (
-              <List.Item
-                style={{ 
-                  cursor: 'pointer',
-                  backgroundColor: currentConversation?.id === conversation.id ? '#f0f8ff' : 'transparent',
-                  padding: 8,
-                  borderRadius: 4
-                }}
-                onClick={() => loadConversation(conversation)}
-              >
-                <List.Item.Meta
-                  avatar={<Avatar icon={<MessageOutlined />} size="small" />}
-                  title={conversation.title}
-                  description={new Date(conversation.updatedAt).toLocaleString()}
-                />
-              </List.Item>
-            )}
-            locale={{
-              emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无对话" />
-            }}
-          />
-        </Card>
-      </div>
+    <div className="conversation-manager" style={{ padding: '20px 0' }}>
+      {/* 剧本选择器 */}
+      <ScriptSlider
+        scripts={scripts}
+        currentScript={selectedScript}
+        onScriptSelect={selectScript}
+        cardHeight={120}
+      />
 
-      {/* 右侧对话区域 */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <Card 
-          title={currentConversation ? currentConversation.title : '对话区域'}
-          size="small"
-          style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-        >
-          {currentConversation ? (
-            <>
-              {/* 消息列表 */}
-              <div style={{ 
-                flex: 1, 
-                overflowY: 'auto', 
-                padding: '16px 0',
-                maxHeight: '400px'
-              }}>
-                <List
-                  dataSource={messages}
-                  renderItem={(message) => (
-                    <List.Item style={{ border: 'none', padding: '8px 0' }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'flex-start',
-                        gap: 12,
-                        width: '100%'
-                      }}>
-                        <Avatar 
-                          icon={message.type === 'user' ? <UserOutlined /> : <RobotOutlined />}
-                          style={{ 
-                            backgroundColor: message.type === 'user' ? '#1890ff' : '#52c41a'
-                          }}
-                        />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ 
-                            backgroundColor: message.type === 'user' ? '#e6f7ff' : '#f6ffed',
-                            padding: 12,
-                            borderRadius: 8,
-                            maxWidth: '80%',
-                            wordBreak: 'break-word'
-                          }}>
-                            <Text>{message.content}</Text>
-                          </div>
-                          <Text type="secondary" style={{ fontSize: 12, marginTop: 4 }}>
+      {/* 角色选择器 */}
+      {selectedScript && (
+        <RoleSlider
+          roles={selectedScript.roles}
+          selectedRole={selectedRole}
+          onRoleSelect={setSelectedRole}
+          cardHeight={80}
+        />
+      )}
+
+      {/* 对话区域 */}
+      <div style={{ marginTop: 20 }}>
+        {selectedScript && selectedRole ? (
+          <Card style={{ height: 'calc(100vh - 400px)' }}>
+            {/* 消息列表 */}
+            <div style={{ 
+              height: 'calc(100% - 100px)', 
+              overflowY: 'auto',
+              padding: '16px 0'
+            }}>
+              <List
+                dataSource={messages}
+                renderItem={(message) => (
+                  <List.Item style={{ 
+                    border: 'none', 
+                    padding: '8px 16px',
+                    display: 'flex',
+                    justifyContent: message.type === 'user' ? 'flex-end' : 'flex-start'
+                  }}>
+                    <div style={{ 
+                      maxWidth: '70%',
+                      display: 'flex',
+                      flexDirection: message.type === 'user' ? 'row-reverse' : 'row',
+                      alignItems: 'flex-start',
+                      gap: 8
+                    }}>
+                      <Avatar 
+                        icon={message.type === 'user' ? <UserOutlined /> : <RobotOutlined />}
+                        style={{ 
+                          backgroundColor: message.type === 'user' ? '#1890ff' : '#52c41a'
+                        }}
+                      />
+                      <div>
+                        <div style={{ 
+                          backgroundColor: message.type === 'user' ? '#e6f7ff' : '#f6ffed',
+                          padding: '8px 12px',
+                          borderRadius: 8,
+                          position: 'relative'
+                        }}>
+                          <Text>{message.content}</Text>
+                        </div>
+                        <div style={{ 
+                          textAlign: message.type === 'user' ? 'right' : 'left',
+                          marginTop: 4
+                        }}>
+                          <Text type="secondary" style={{ fontSize: 12 }}>
                             {new Date(message.timestamp).toLocaleTimeString()}
                           </Text>
                         </div>
                       </div>
-                    </List.Item>
-                  )}
-                  locale={{
-                    emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="开始对话吧" />
-                  }}
-                />
-                <div ref={messagesEndRef} />
-              </div>
+                    </div>
+                  </List.Item>
+                )}
+                locale={{
+                  emptyText: (
+                    <Empty 
+                      image={Empty.PRESENTED_IMAGE_SIMPLE} 
+                      description={
+                        currentConversation 
+                          ? "开始对话吧" 
+                          : <Button type="primary" onClick={createNewConversation}>开始新对话</Button>
+                      }
+                    />
+                  )
+                }}
+              />
+              <div ref={messagesEndRef} />
+            </div>
 
-              {/* 输入区域 */}
-              <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
-                <Space.Compact style={{ width: '100%' }}>
-                  <TextArea
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="输入消息..."
-                    autoSize={{ minRows: 2, maxRows: 4 }}
-                    disabled={sending}
-                  />
-                  <Button 
-                    type="primary" 
-                    icon={<SendOutlined />}
-                    onClick={sendMessage}
-                    loading={sending}
-                    disabled={!inputValue.trim()}
-                  >
-                    发送
-                  </Button>
-                </Space.Compact>
-              </div>
-            </>
-          ) : (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="请选择或创建一个对话"
-            />
-          )}
-        </Card>
+            {/* 输入区域 */}
+            <div style={{ 
+              borderTop: '1px solid #f0f0f0', 
+              padding: '16px 0',
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              backgroundColor: 'white'
+            }}>
+              <Space.Compact style={{ width: '100%' }}>
+                <TextArea
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="输入消息..."
+                  autoSize={{ minRows: 1, maxRows: 4 }}
+                  disabled={sending}
+                  style={{ borderRadius: '4px 0 0 4px' }}
+                />
+                <Button 
+                  type="primary" 
+                  icon={<SendOutlined />}
+                  onClick={sendMessage}
+                  loading={sending}
+                  disabled={!inputValue.trim() || !currentConversation}
+                  style={{ borderRadius: '0 4px 4px 0' }}
+                >
+                  发送
+                </Button>
+              </Space.Compact>
+            </div>
+          </Card>
+        ) : (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="请先选择剧本和角色"
+          />
+        )}
       </div>
     </div>
   )

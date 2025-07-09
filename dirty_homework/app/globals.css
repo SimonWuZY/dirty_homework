@@ -31,3 +31,54 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
+
+/* 自定义滚动条样式 */
+.script-manager .script-history::-webkit-scrollbar {
+  height: 6px;
+}
+
+.script-manager .script-history::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.script-manager .script-history::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.script-manager .script-history::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 角色信息区域的滚动条 */
+.roles-area .ant-card-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.roles-area .ant-card-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.roles-area .ant-card-body::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.roles-area .ant-card-body::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+  .script-manager .main-content {
+    flex-direction: column;
+    height: auto;
+  }
+  
+  .script-manager .roles-area {
+    width: 100%;
+    margin-top: 20px;
+  }
+}

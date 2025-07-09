@@ -4,13 +4,9 @@ import React, { useState, useEffect } from 'react'
 import { Layout, Menu, theme, Tabs, message } from 'antd'
 import { 
   BookOutlined, 
-  UserOutlined, 
-  MessageOutlined,
-  PlusOutlined,
-  UploadOutlined
+  MessageOutlined
 } from '@ant-design/icons'
 import ScriptManager from '../components/ScriptManager'
-import CharacterManager from '../components/CharacterManager'
 import ConversationManager from '../components/ConversationManager'
 
 const { Header, Sider, Content } = Layout
@@ -31,11 +27,6 @@ export default function HomePage() {
       label: '剧本管理',
     },
     {
-      key: 'characters',
-      icon: <UserOutlined />,
-      label: '角色管理',
-    },
-    {
       key: 'conversations',
       icon: <MessageOutlined />,
       label: '对话系统',
@@ -53,14 +44,6 @@ export default function HomePage() {
           <ScriptManager 
             onScriptSelect={setSelectedScript}
             selectedScript={selectedScript}
-          />
-        )
-      case 'characters':
-        return (
-          <CharacterManager 
-            scriptId={selectedScript}
-            onCharacterSelect={setSelectedCharacter}
-            selectedCharacter={selectedCharacter}
           />
         )
       case 'conversations':

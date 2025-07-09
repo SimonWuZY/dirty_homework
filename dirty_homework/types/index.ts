@@ -44,4 +44,19 @@ export interface ApiResponse<T> {
   success: boolean;
   data?: T;
   message?: string;
+}
+
+// 后端API标准响应格式
+export interface BackendApiResponse<T> {
+  code: number;
+  status: string;
+  message: string;
+  data?: T;
+}
+
+// 剧本上传/创建响应数据格式
+export interface ScriptResponseData {
+  script_id: string;
+  script_title: string;
+  script_content: string;
 } 
