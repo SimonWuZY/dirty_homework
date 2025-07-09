@@ -1,5 +1,4 @@
 'use client'
-import { env } from 'process'
 import React, { useState, useEffect, useRef } from 'react'
 import { 
   Card, 
@@ -83,7 +82,7 @@ const ConversationManager: React.FC = () => {
 
     try {
       // 开始 SSE 连接
-      const sseUrl = `${env.requestAPI}/chat`
+      const sseUrl = `${process.env.REQUESTAPI}/chat`
       
       startSSEConnection(sseUrl, {
         onMessage: (data) => {

@@ -1,4 +1,3 @@
-import { env } from 'process'
 import { 
   uploadScriptRsp, 
   analyzeScriptReq, 
@@ -18,7 +17,7 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   try {
-    const response = await fetch(`${env.requestAPI}${endpoint}`, {
+    const response = await fetch(`${process.env.REQUESTAPI}${endpoint}`, {
       ...options,
     });
 
@@ -42,7 +41,7 @@ export const scriptApi = {
       formData.append('title', title);
       formData.append('file', file);
       
-      const response = await fetch(`${env.requestAPI}/scripts`, {
+      const response = await fetch(`${process.env.REQUESTAPI}/scripts`, {
         method: 'POST',
         body: formData,
       });
@@ -70,7 +69,7 @@ export const scriptApi = {
         script_id: scriptId
       };
       
-      const response = await fetch(`${env.requestAPI}/roles`, {
+      const response = await fetch(`${process.env.REQUESTAPI}/roles`, {
         method: 'POST',
         body: JSON.stringify(requestBody)
       });
@@ -92,7 +91,7 @@ export const scriptApi = {
   // 修改角色
   modifyRole: async (params: modifyRoleReq): Promise<modifyRoleRsp> => {
     try {
-      const response = await fetch(`${env.requestAPI}/roles`, {
+      const response = await fetch(`${process.env.REQUESTAPI}/roles`, {
         method: 'PUT',
         body: JSON.stringify(params),
       });
@@ -117,7 +116,7 @@ export const conversationApi = {
   // 获取历史对话
   getHistory: async (params: getHistoryReq): Promise<getHistoryRsp> => {
     try {
-      const response = await fetch(`${env.requestAPI}/chat`, {
+      const response = await fetch(`${process.env.REQUESTAPI}/chat`, {
         method: 'GET',
         body: JSON.stringify(params),
       });
@@ -132,7 +131,7 @@ export const conversationApi = {
   // 开始 sse 对话
   startSSE: async (params: startSSEReq): Promise<startSSERsp> => {
     try {
-      const response = await fetch(`${env.requestAPI}/chat`, {
+      const response = await fetch(`${process.env.REQUESTAPI}/chat`, {
         method: 'POST',
         body: JSON.stringify(params),
       });
