@@ -104,9 +104,6 @@ export const conversationApi = {
       
       const response = await fetch(`${process.env.REQUESTAPI}/chat?${urlParams.toString()}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       });
       const result: getHistoryRsp = await response.json();
       return result;

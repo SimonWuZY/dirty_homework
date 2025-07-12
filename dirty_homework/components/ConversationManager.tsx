@@ -34,8 +34,11 @@ const ConversationManager: React.FC = () => {
   // 获取助手角色（第二个选择的角色，或单选模式下的唯一角色）
   const getAssistantRole = (): Role | null => {
     if (conversationMode === 'single') {
-      return selectedRoles.length > 0 ? selectedRoles[0].role : null
+      // 单选模式下，助手角色就是order为1的角色
+      const assistantRole = selectedRoles.find(r => r.order === 1)
+      return assistantRole ? assistantRole.role : null
     } else {
+      // 双选模式下，助手角色是order为2的角色
       const assistantRole = selectedRoles.find(r => r.order === 2)
       return assistantRole ? assistantRole.role : null
     }
@@ -48,7 +51,21 @@ const ConversationManager: React.FC = () => {
     
     if (existingIndex !== -1) {
       // 如果已经选择了，则取消选择
-      setSelectedRoles(prev => prev.filter(r => r.role.id !== role.id))
+      const newSelectedRoles = selectedRoles.filter(r => r.role.id !== role.id)
+      
+      // 调整剩余角色的order
+      if (newSelectedRoles.length === 1) {
+        // 如果剩余一个角色，将其设置为order: 1（用户角色/单选模式）
+        setSelectedRoles([{ role: newSelectedRoles[0].role, order: 1 }])
+        setConversationMode('single')
+      } else if (newSelectedRoles.length === 0) {
+        // 如果没有剩余角色
+        setSelectedRoles([])
+        setConversationMode('single')
+      } else {
+        // 如果剩余多个角色，保持原有order
+        setSelectedRoles(newSelectedRoles)
+      }
     } else {
       // 如果没有选择，则添加
       if (selectedRoles.length === 0) {

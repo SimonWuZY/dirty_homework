@@ -33,7 +33,6 @@ interface ChatBoxProps {
 const ChatBox: React.FC<ChatBoxProps> = ({
   userRole,
   assistantRole,
-  conversationMode,
   height = 600
 }) => {
   const [messages, setMessages] = useState<historyItem[]>([])
@@ -59,7 +58,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   const fetchHistory = useCallback(async () => {
     try {
       const response = await conversationApi.getHistory({
-        role_id_user: userRole?.id || '', // 游客模式时为空字符串
+        role_id_user: userRole?.id === assistantRole.id ? '' : userRole?.id || '', 
         role_id_assistant: assistantRole.id
       })
       
@@ -72,11 +71,6 @@ const ChatBox: React.FC<ChatBoxProps> = ({
       message.error('获取历史对话失败')
     }
   }, [userRole?.id, assistantRole.id])
-
-  // 初始化时获取历史对话
-  useEffect(() => {
-    fetchHistory()
-  }, [fetchHistory])
 
   // 角色变化时重新获取历史对话
   useEffect(() => {
