@@ -96,9 +96,17 @@ export const conversationApi = {
   // 获取历史对话
   getHistory: async (params: getHistoryReq): Promise<getHistoryRsp> => {
     try {
-      const response = await fetch(`${process.env.REQUESTAPI}/chat`, {
+      // 构建URL参数
+      const urlParams = new URLSearchParams({
+        role_id_user: params.role_id_user,
+        role_id_assistant: params.role_id_assistant
+      });
+      
+      const response = await fetch(`${process.env.REQUESTAPI}/chat?${urlParams.toString()}`, {
         method: 'GET',
-        body: JSON.stringify(params),
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
       const result: getHistoryRsp = await response.json();
       return result;
