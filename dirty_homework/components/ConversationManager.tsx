@@ -1,9 +1,9 @@
 'use client'
 import React, { useState } from 'react'
-import { 
-  Card, 
-  Typography, 
-  Space, 
+import {
+  Card,
+  Typography,
+  Space,
   Empty,
   Tag
 } from 'antd'
@@ -22,7 +22,7 @@ interface SelectedRole {
 const ConversationManager: React.FC = () => {
   const [selectedRoles, setSelectedRoles] = useState<SelectedRole[]>([])
   const [conversationMode, setConversationMode] = useState<'single' | 'dual'>('single')
-  
+
   const { scripts, selectedScript, selectScript } = useScriptStore()
 
   // 获取用户角色（第一个选择的角色）
@@ -48,11 +48,11 @@ const ConversationManager: React.FC = () => {
   const handleRoleSelect = (role: Role) => {
     // 检查是否已经选择了这个角色
     const existingIndex = selectedRoles.findIndex(r => r.role.id === role.id)
-    
+
     if (existingIndex !== -1) {
       // 如果已经选择了，则取消选择
       const newSelectedRoles = selectedRoles.filter(r => r.role.id !== role.id)
-      
+
       // 调整剩余角色的order
       if (newSelectedRoles.length === 1) {
         // 如果剩余一个角色，将其设置为order: 1（用户角色/单选模式）
@@ -101,7 +101,7 @@ const ConversationManager: React.FC = () => {
   const getConversationModeDescription = () => {
     const userRole = getUserRole()
     const assistantRole = getAssistantRole()
-    
+
     if (conversationMode === 'single' && assistantRole) {
       return `游客与 ${assistantRole.name} 对话`
     } else if (conversationMode === 'dual' && userRole && assistantRole) {
@@ -130,19 +130,29 @@ const ConversationManager: React.FC = () => {
                 <Text>{getConversationModeDescription()}</Text>
               </div>
               <div>
-                {selectedRoles.map(({ role, order }) => (
-                  <Tag 
-                    key={role.id} 
-                    color={order === 1 ? 'green' : 'blue'}
+                {selectedRoles.length === 1 ? (
+                  <Tag
+                    key={selectedRoles[0].role.id}
+                    color="blue"
                     style={{ marginLeft: 8 }}
                   >
-                    {order === 1 ? '用户' : '助手'}: {role.name}
+                    助手: {selectedRoles[0].role.name}
                   </Tag>
-                ))}
+                ) : (
+                  selectedRoles.map(({ role, order }) => (
+                    <Tag
+                      key={role.id}
+                      color={order === 1 ? 'green' : 'blue'}
+                      style={{ marginLeft: 8 }}
+                    >
+                      {order === 1 ? '用户' : '助手'}: {role.name}
+                    </Tag>
+                  ))
+                )}
               </div>
             </div>
           </Card>
-          
+
           {/* 角色选择滑动条 */}
           <RoleSlider
             roles={selectedScript.roles}
